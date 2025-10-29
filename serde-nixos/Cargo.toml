@@ -1,0 +1,64 @@
+[package]
+name = "serde-nixos"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Generate NixOS type definitions from Rust structures"
+
+[dependencies]
+serde-nixos-macros = { path = "../serde-nixos-macros" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+serde = { workspace = true }
+
+[[example]]
+name = "simple_config"
+path = "../examples/simple_config.rs"
+
+[[example]]
+name = "complex_config"
+path = "../examples/complex_config.rs"
+
+[[example]]
+name = "generate_nixos"
+path = "../examples/generate_nixos.rs"
+
+[[example]]
+name = "advanced_features"
+path = "../examples/advanced_features.rs"
+
+[[example]]
+name = "auto_doc_example"
+path = "../examples/auto_doc_example.rs"
+
+[[example]]
+name = "nested_types_full_def"
+path = "../examples/nested_types_full_def.rs"
+
+[[test]]
+name = "basic_types"
+path = "../tests/integration/basic_types.rs"
+
+[[test]]
+name = "nested_structs"
+path = "../tests/integration/nested_structs.rs"
+
+[[test]]
+name = "enum_types"
+path = "../tests/integration/enum_types.rs"
+
+[[test]]
+name = "advanced_features_test"
+path = "../tests/integration/advanced_features.rs"
+
+[[test]]
+name = "auto_doc"
+path = "../tests/integration/auto_doc.rs"
+
+[[test]]
+name = "full_definition"
+path = "../tests/integration/full_definition.rs"

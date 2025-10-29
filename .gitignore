@@ -1,0 +1,19 @@
+# Rust
+/target
+**/*.rs.bk
+
+# Nix
+/result
+/result-*
+.direnv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Generated files
+nixos-test-module.nix
+# Note: integration-test/module.nix is tracked in git for testing purposes

@@ -1,0 +1,133 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Create GitHub release
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Extract changelog
+        id: changelog
+        run: |
+          VERSION=${{ steps.get_version.outputs.VERSION }}
+          # Extract changelog section for this version
+          sed -n "/## \[$VERSION\]/,/## \[/p" CHANGELOG.md | sed '$d' > release_notes.md
+          echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+          cat release_notes.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ steps.get_version.outputs.VERSION }}
+          body: ${{ steps.changelog.outputs.CHANGELOG }}
+          draft: false
+          prerelease: false
+
+  # Publish to crates.io
+  publish-crates:
+    name: Publish to crates.io
+    runs-on: ubuntu-latest
+    needs: create-release
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Verify version matches tag
+        run: |
+          TAG_VERSION=${GITHUB_REF#refs/tags/v}
+          CARGO_VERSION=$(grep '^version' serde-nixos/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          if [ "$TAG_VERSION" != "$CARGO_VERSION" ]; then
+            echo "Tag version ($TAG_VERSION) doesn't match Cargo.toml version ($CARGO_VERSION)"
+            exit 1
+          fi
+
+      - name: Publish serde-nixos-macros
+        run: |
+          cd serde-nixos-macros
+          cargo publish --token ${{ secrets.CRATES_IO_TOKEN }}
+
+      - name: Wait for serde-nixos-macros to be available
+        run: sleep 30
+
+      - name: Publish serde-nixos
+        run: |
+          cd serde-nixos
+          cargo publish --token ${{ secrets.CRATES_IO_TOKEN }}
+
+  # Build documentation and deploy to GitHub Pages
+  deploy-docs:
+    name: Deploy Documentation
+    runs-on: ubuntu-latest
+    needs: publish-crates
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build documentation
+        run: cargo doc --all --no-deps
+
+      - name: Add index.html redirect
+        run: |
+          echo '<meta http-equiv="refresh" content="0; url=serde_nixos/index.html">' > target/doc/index.html
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./target/doc
+          force_orphan: true
+
+  # Notify on success
+  notify-success:
+    name: Notify Release Success
+    runs-on: ubuntu-latest
+    needs: [create-release, publish-crates, deploy-docs]
+    if: success()
+    steps:
+      - name: Extract version
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Success notification
+        run: |
+          echo "🎉 Successfully released version ${{ steps.get_version.outputs.VERSION }}"
+          echo "- Created GitHub release"
+          echo "- Published to crates.io"
+          echo "- Deployed documentation"
