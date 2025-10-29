@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2025-10-29
+
 ### Added
 - Initial implementation of `#[derive(NixosType)]` proc macro
 - Support for basic Rust types (primitives, String, bool, numeric types)
@@ -61,8 +63,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Package outputs for all binaries
   - Formatter for code formatting
 - Pre-commit configuration for code quality enforcement
-
-## [0.1.0] - Unreleased
 
 ### Fixed
 - `nixos_type_full_definition()` now properly generates recursive let bindings for all nested custom types
