@@ -69,7 +69,7 @@ fn path_to_nixos_type(path: &Path) -> TokenStream {
     }
 }
 
-/// Extract the inner type from a generic type like Vec<T> or Option<T>
+/// Extract the inner type from a generic type like `Vec<T>` or `Option<T>`
 fn get_generic_inner_type(path: &Path) -> Option<&Type> {
     let last_segment = path.segments.last()?;
 
@@ -106,7 +106,7 @@ pub fn enum_to_nixos_type(variants: &[String]) -> TokenStream {
     quote! { format!("types.enum [ {} ]", #variants_str) }
 }
 
-/// Check if a type is optional (Option<T>)
+/// Check if a type is optional (`Option<T>`)
 pub fn is_optional_type(ty: &Type) -> bool {
     if let Type::Path(type_path) = ty {
         if let Some(segment) = type_path.path.segments.last() {
@@ -116,7 +116,7 @@ pub fn is_optional_type(ty: &Type) -> bool {
     false
 }
 
-/// Extract the inner type from Option<T>
+/// Extract the inner type from `Option<T>`
 pub fn unwrap_option_type(ty: &Type) -> &Type {
     if let Type::Path(type_path) = ty {
         if let Some(segment) = type_path.path.segments.last() {

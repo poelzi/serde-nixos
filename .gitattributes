@@ -1,0 +1,36 @@
+# Auto detect text files and normalize line endings to LF
+* text=auto eol=lf
+
+# Rust source files
+*.rs text diff=rust
+
+# Cargo files
+Cargo.toml text diff=toml
+Cargo.lock text -merge
+
+# Nix files
+*.nix text diff=nix
+
+# Documentation
+*.md text diff=markdown
+LICENSE-MIT text
+LICENSE-APACHE text
+
+# Config files
+*.toml text diff=toml
+*.yml text
+
+# Git files
+.gitignore text
+.gitattributes text
+.editorconfig text
+
+# Generated files - mark for export-ignore (excluded from git archive)
+/target export-ignore
+/.direnv export-ignore
+/result export-ignore
+/result-* export-ignore
+.git* export-ignore
+*.swp export-ignore
+*.swo export-ignore
+*~ export-ignore

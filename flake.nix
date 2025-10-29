@@ -72,6 +72,8 @@
               cargo clippy --all-targets --all-features -- -D warnings
               echo "Checking formatting..."
               cargo fmt --all -- --check
+              echo "Generating documentation..."
+              cargo doc --all --no-deps --document-private-items
               runHook postCheck
             '';
 

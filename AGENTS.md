@@ -339,6 +339,7 @@ The `nix flake check` command runs comprehensive checks:
     - All unit and integration tests (`cargo test --all --release`)
     - Full workspace build (`cargo build --all --release`)
     - All examples build (`cargo build --examples --release`)
+    - Documentation generation (`cargo doc --all --no-deps --document-private-items`)
   - **Output:** Binaries installed to `$out/bin` (test-service, generate-module)
 
 ### Additional Checks
