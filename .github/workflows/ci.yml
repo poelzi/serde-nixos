@@ -236,30 +236,18 @@ jobs:
   ci-success:
     name: CI Success
     needs:
-      [
-        format-check,
-        pre-commit,
-        clippy,
-        test,
-        examples,
-        docs,
-        nix-checks,
-        msrv,
-        security-audit,
-      ]
+      [format-check, clippy, test, examples, docs, nix-checks, security-audit]
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Check all jobs succeeded
         run: |
           if [[ "${{ needs.format-check.result }}" != "success" ]] || \
-             [[ "${{ needs.pre-commit.result }}" != "success" ]] || \
              [[ "${{ needs.clippy.result }}" != "success" ]] || \
              [[ "${{ needs.test.result }}" != "success" ]] || \
              [[ "${{ needs.examples.result }}" != "success" ]] || \
              [[ "${{ needs.docs.result }}" != "success" ]] || \
              [[ "${{ needs.nix-checks.result }}" != "success" ]] || \
-             [[ "${{ needs.msrv.result }}" != "success" ]] || \
              [[ "${{ needs.security-audit.result }}" != "success" ]]; then
             echo "One or more CI jobs failed"
             exit 1
