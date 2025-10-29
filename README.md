@@ -269,7 +269,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 - [ ] Support for custom type validators
 - [ ] Generate Nix functions for serialization/deserialization
 - [ ] Support for more complex default value expressions
-- [ ] Integration with nix flakes
 - [ ] Support for recursive types
 - [ ] Better error messages for invalid attributes
 ## New Features (v0.2)
