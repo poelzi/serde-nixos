@@ -75,7 +75,7 @@ jobs:
       - name: Verify version matches tag
         run: |
           TAG_VERSION=${GITHUB_REF#refs/tags/v}
-          CARGO_VERSION=$(grep '^version' serde-nixos/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          CARGO_VERSION=$(grep '^\[workspace.package\]' -A 20 Cargo.toml | grep '^version' | head -1 | sed 's/.*"\(.*\)".*/\1/')
           if [ "$TAG_VERSION" != "$CARGO_VERSION" ]; then
             echo "Tag version ($TAG_VERSION) doesn't match Cargo.toml version ($CARGO_VERSION)"
             exit 1

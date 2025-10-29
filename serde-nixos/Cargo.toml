@@ -8,7 +8,7 @@ repository.workspace = true
 description = "Generate NixOS type definitions from Rust structures"
 
 [dependencies]
-serde-nixos-macros = { path = "../serde-nixos-macros" }
+serde-nixos-macros = { version = "0.1.0", path = "../serde-nixos-macros" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 
