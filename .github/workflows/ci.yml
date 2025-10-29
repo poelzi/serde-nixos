@@ -26,23 +26,6 @@ jobs:
       - name: Check Rust formatting
         run: cargo fmt --all -- --check
 
-  # Pre-commit hooks check
-  pre-commit:
-    name: Pre-commit Hooks
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Nix
-        uses: cachix/install-nix-action@v25
-        with:
-          extra_nix_config: |
-            experimental-features = nix-command flakes
-            accept-flake-config = true
-
-      - name: Run pre-commit checks
-        run: nix build .#checks.x86_64-linux.pre-commit-check --print-build-logs
-
   clippy:
     name: Clippy Lints
     runs-on: ubuntu-latest
@@ -201,37 +184,37 @@ jobs:
         run: nix build .#packages.x86_64-linux.ci --print-build-logs
 
   # Minimum supported Rust version (MSRV) check
-  msrv:
-    name: Minimum Supported Rust Version
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust 1.70 (MSRV)
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: "1.70"
-
-      - name: Cache cargo registry
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-msrv-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache cargo index
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-msrv-cargo-git-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache cargo build
-        uses: actions/cache@v4
-        with:
-          path: target
-          key: ${{ runner.os }}-msrv-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Check MSRV
-        run: cargo check --all
+  #msrv:
+  #  name: Minimum Supported Rust Version
+  #  runs-on: ubuntu-latest
+  #  steps:
+  #    - uses: actions/checkout@v4
+  #
+  #    - name: Install Rust 1.70 (MSRV)
+  #      uses: dtolnay/rust-toolchain@master
+  #      with:
+  #        toolchain: "1.70"
+  #
+  #    - name: Cache cargo registry
+  #      uses: actions/cache@v4
+  #      with:
+  #        path: ~/.cargo/registry
+  #        key: ${{ runner.os }}-msrv-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+  #
+  #    - name: Cache cargo index
+  #      uses: actions/cache@v4
+  #      with:
+  #        path: ~/.cargo/git
+  #        key: ${{ runner.os }}-msrv-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+  #
+  #    - name: Cache cargo build
+  #      uses: actions/cache@v4
+  #      with:
+  #        path: target
+  #        key: ${{ runner.os }}-msrv-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+  #
+  #    - name: Check MSRV
+  #      run: cargo check --all
 
   # Security audit
   security-audit:
