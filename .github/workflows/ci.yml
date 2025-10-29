@@ -171,7 +171,7 @@ jobs:
             accept-flake-config = true
 
       - name: Setup Cachix
-        uses: cachix/cachix-action@v14
+        uses: cachix/cachix-action@v16
         with:
           name: serde-nixos
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
