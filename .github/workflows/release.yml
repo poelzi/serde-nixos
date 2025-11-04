@@ -83,7 +83,7 @@ jobs:
       - name: Publish serde-nixos-macros
         run: |
           cd serde-nixos-macros
-          cargo publish --token ${{ secrets.CRATES_IO_TOKEN }}
+          cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
       - name: Wait for serde-nixos-macros to be available
         run: sleep 30
@@ -91,7 +91,7 @@ jobs:
       - name: Publish serde-nixos
         run: |
           cd serde-nixos
-          cargo publish --token ${{ secrets.CRATES_IO_TOKEN }}
+          cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
   # Build documentation and deploy to GitHub Pages
   deploy-docs:
