@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2025-11-04
+
+### Fixed
+- Fixed parsing of `#[serde(default = "function")]` attribute pattern
+  - Previously caused "expected `,`" compile errors
+  - Now correctly handles both `#[serde(default)]` and `#[serde(default = "function")]`
+  - Added comprehensive test suite for serde default attribute patterns
+
+### Added
+- New integration test `serde_default.rs` covering various serde default patterns
+
 ## [0.1.0] - 2025-10-29
 
 ### Added
@@ -121,5 +132,6 @@ This project follows semantic versioning:
   - Internal refactoring
   - Performance improvements
 
-[Unreleased]: https://github.com/serde-nixos/serde-nixos/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/serde-nixos/serde-nixos/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/serde-nixos/serde-nixos/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/serde-nixos/serde-nixos/releases/tag/v0.1.0

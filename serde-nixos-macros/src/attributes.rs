@@ -129,7 +129,13 @@ pub fn parse_serde_attributes(attrs: &[Attribute]) -> syn::Result<SerdeAttribute
             } else if meta.path.is_ident("skip_deserializing") {
                 serde_attrs.skip_deserializing = true;
             } else if meta.path.is_ident("default") {
+                // Handle both #[serde(default)] and #[serde(default = "function")]
                 serde_attrs.has_default = true;
+                // If there's a value (like default = "function"), consume it to prevent parse errors
+                // We don't need to store the function name for NixOS generation
+                if let Ok(value) = meta.value() {
+                    let _: syn::Result<syn::LitStr> = value.parse();
+                }
             } else if meta.path.is_ident("flatten") {
                 serde_attrs.flatten = true;
             }
