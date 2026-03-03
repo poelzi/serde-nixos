@@ -123,8 +123,12 @@ You can use `#[nixos(...)]` attributes to customize the generated NixOS options:
 The macro respects serde attributes:
 
 - `#[serde(rename = "...")]` - Renames the field (unless overridden by `#[nixos(rename)]`)
+- `#[serde(rename(serialize = "...", deserialize = "..."))]` - Uses the deserialize name
+- `#[serde(rename_all = "...")]` on structs/enums - Applies serde casing for fields/variants
 - `#[serde(skip)]` - Skips the field
 - `#[serde(default)]` - Makes the field optional in NixOS
+- Parse-compatible serde field attributes (ignored for Nix output semantics):
+  - `alias`, `skip_serializing_if`, `serialize_with`, `deserialize_with`, `with`, `borrow`, `bound`, `getter`
 
 ## Complex Example
 

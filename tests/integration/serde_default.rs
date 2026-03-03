@@ -5,6 +5,24 @@
 use serde::{Deserialize, Serialize};
 use serde_nixos::NixosType;
 
+mod custom_opt_u16 {
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    pub fn serialize<S>(value: &Option<u16>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        value.serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<u16>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Option::<u16>::deserialize(deserializer)
+    }
+}
+
 // Default functions
 fn default_port() -> u16 {
     8080
@@ -145,5 +163,52 @@ fn test_multiple_defaults_in_one_struct() {
 
     // Before the fix, this would fail with "expected `,`" on each default = "..."
     let nixos_type = MultiDefaultConfig::nixos_type();
+    assert!(!nixos_type.is_empty());
+}
+
+#[test]
+fn test_default_with_skip_serializing_if() {
+    #[derive(Debug, Serialize, Deserialize, NixosType)]
+    struct OptionalConfig {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        maybe_port: Option<u16>,
+    }
+
+    // Regression test: this combination previously failed to parse.
+    let nixos_type = OptionalConfig::nixos_type();
+    assert!(!nixos_type.is_empty());
+}
+
+#[test]
+fn test_serde_value_attrs_are_parse_compatible() {
+    #[derive(Debug, Serialize, Deserialize, NixosType)]
+    struct ParseCompatConfig {
+        #[serde(
+            default,
+            serialize_with = "custom_opt_u16::serialize",
+            deserialize_with = "custom_opt_u16::deserialize"
+        )]
+        custom_ser_de: Option<u16>,
+
+        #[serde(default, with = "custom_opt_u16")]
+        with_module: Option<u16>,
+
+        #[serde(default, alias = "legacyPort", skip_serializing_if = "Option::is_none")]
+        maybe_port: Option<u16>,
+    }
+
+    let nixos_type = ParseCompatConfig::nixos_type();
+    assert!(!nixos_type.is_empty());
+}
+
+#[test]
+fn test_serde_container_bound_parse_compatible() {
+    #[derive(Debug, Serialize, Deserialize, NixosType)]
+    #[serde(bound(serialize = "u16: Serialize", deserialize = "u16: Deserialize<'de>"))]
+    struct ContainerBoundConfig {
+        port: u16,
+    }
+
+    let nixos_type = ContainerBoundConfig::nixos_type();
     assert!(!nixos_type.is_empty());
 }

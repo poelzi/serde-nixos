@@ -123,3 +123,92 @@ fn test_serde_rename() {
     // Should use serde rename when no nixos rename
     assert!(options.contains("serverPort = lib.mkOption"));
 }
+
+#[test]
+fn test_serde_rename_prefers_deserialize_name() {
+    #[derive(Serialize, Deserialize, NixosType)]
+    struct DirectionalRename {
+        #[serde(rename(serialize = "outName", deserialize = "inName"))]
+        field_name: u16,
+    }
+
+    let options = DirectionalRename::nixos_options();
+
+    assert!(options.contains("inName = lib.mkOption"));
+    assert!(!options.contains("outName = lib.mkOption"));
+}
+
+#[test]
+fn test_serde_container_rename_all() {
+    #[derive(Serialize, Deserialize, NixosType)]
+    #[serde(rename_all = "camelCase")]
+    struct RenameAllConfig {
+        max_connections: u16,
+        tls_enabled: bool,
+    }
+
+    let options = RenameAllConfig::nixos_options();
+
+    assert!(options.contains("maxConnections = lib.mkOption"));
+    assert!(options.contains("tlsEnabled = lib.mkOption"));
+}
+
+#[test]
+fn test_serde_rename_all_lowercase_preserves_underscores() {
+    #[derive(Serialize, Deserialize, NixosType)]
+    #[serde(rename_all = "lowercase")]
+    struct LowerConfig {
+        my_field: u16,
+        another_field: bool,
+    }
+
+    let options = LowerConfig::nixos_options();
+
+    // Serde lowercase on snake_case fields preserves underscores
+    assert!(options.contains("my_field = lib.mkOption"));
+    assert!(options.contains("another_field = lib.mkOption"));
+}
+
+#[test]
+fn test_serde_rename_all_uppercase_preserves_underscores() {
+    #[derive(Serialize, Deserialize, NixosType)]
+    #[serde(rename_all = "UPPERCASE")]
+    struct UpperConfig {
+        my_field: u16,
+        another_field: bool,
+    }
+
+    let options = UpperConfig::nixos_options();
+
+    // Serde UPPERCASE on snake_case fields preserves underscores
+    assert!(options.contains("MY_FIELD = lib.mkOption"));
+    assert!(options.contains("ANOTHER_FIELD = lib.mkOption"));
+}
+
+#[test]
+fn test_serde_rename_all_screaming_snake_on_fields() {
+    #[derive(Serialize, Deserialize, NixosType)]
+    #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+    struct ScreamConfig {
+        my_field: u16,
+    }
+
+    let options = ScreamConfig::nixos_options();
+
+    assert!(options.contains("MY_FIELD = lib.mkOption"));
+}
+
+#[test]
+fn test_serde_rename_all_pascal_on_fields() {
+    #[derive(Serialize, Deserialize, NixosType)]
+    #[serde(rename_all = "PascalCase")]
+    struct PascalConfig {
+        my_field: u16,
+        another_long_field: bool,
+    }
+
+    let options = PascalConfig::nixos_options();
+
+    assert!(options.contains("MyField = lib.mkOption"));
+    assert!(options.contains("AnotherLongField = lib.mkOption"));
+}

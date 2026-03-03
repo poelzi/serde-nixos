@@ -4,8 +4,9 @@ use std::collections::HashSet;
 use syn::{Data, DeriveInput, Fields, FieldsNamed, Ident, Result, Type};
 
 use crate::attributes::{
-    combine_attributes, extract_doc_comments, parse_nixos_attributes,
-    parse_nixos_struct_attributes, parse_serde_attributes,
+    apply_rename_rule_to_field, apply_rename_rule_to_variant, combine_attributes,
+    extract_doc_comments, parse_nixos_attributes, parse_nixos_struct_attributes,
+    parse_serde_attributes, parse_serde_container_attributes, RenameRule,
 };
 use crate::type_mapping::{
     get_custom_type_name, is_optional_type, rust_type_to_nixos, unwrap_option_type,
@@ -17,6 +18,7 @@ pub fn expand_nixos_type(input: &DeriveInput) -> Result<TokenStream> {
 
     // Parse struct-level attributes
     let struct_attrs = parse_nixos_struct_attributes(input)?;
+    let serde_container_attrs = parse_serde_container_attributes(&input.attrs)?;
 
     let type_name = generate_type_name(name);
 
@@ -24,11 +26,10 @@ pub fn expand_nixos_type(input: &DeriveInput) -> Result<TokenStream> {
         Data::Struct(data_struct) => generate_struct_impl(&data_struct.fields, name, &type_name)?,
         Data::Enum(data_enum) => {
             // For enums, generate a type.enum with all variants
-            let variants: Vec<String> = data_enum
-                .variants
-                .iter()
-                .map(|v| format!("\"{}\"", v.ident))
-                .collect();
+            let variants =
+                generate_enum_variant_names(data_enum, serde_container_attrs.rename_all)?;
+            let variants: Vec<String> =
+                variants.into_iter().map(|v| format!("\"{}\"", v)).collect();
 
             let variants_str = variants.join(" ");
             quote! {
@@ -55,14 +56,29 @@ pub fn expand_nixos_type(input: &DeriveInput) -> Result<TokenStream> {
         }
     };
 
-    let nixos_type_def =
-        generate_nixos_type_definition(&input.data, name, &type_name, struct_attrs.auto_doc)?;
-    let nixos_options = generate_nixos_options(&input.data, name, struct_attrs.auto_doc)?;
+    let nixos_type_def = generate_nixos_type_definition(
+        &input.data,
+        name,
+        &type_name,
+        struct_attrs.auto_doc,
+        serde_container_attrs.rename_all,
+    )?;
+    let nixos_options = generate_nixos_options(
+        &input.data,
+        name,
+        struct_attrs.auto_doc,
+        serde_container_attrs.rename_all,
+    )?;
     let nixos_type_name_literal = type_name.clone();
 
     // Generate the full definition with all dependent types
-    let nixos_full_def =
-        generate_nixos_full_definition(&input.data, name, &type_name, struct_attrs.auto_doc)?;
+    let nixos_full_def = generate_nixos_full_definition(
+        &input.data,
+        name,
+        &type_name,
+        struct_attrs.auto_doc,
+        serde_container_attrs.rename_all,
+    )?;
 
     Ok(quote! {
         impl #impl_generics #name #ty_generics #where_clause {
@@ -129,13 +145,15 @@ fn generate_nixos_type_definition(
     name: &Ident,
     type_name: &str,
     auto_doc: bool,
+    rename_all: Option<RenameRule>,
 ) -> Result<TokenStream> {
     let struct_name_str = name.to_string();
 
     match data {
         Data::Struct(data_struct) => match &data_struct.fields {
             Fields::Named(fields) => {
-                let options_body = generate_options_for_fields(fields, false, auto_doc)?;
+                let options_body =
+                    generate_options_for_fields(fields, false, auto_doc, rename_all)?;
                 Ok(quote! {
                     {
                         let mut result = String::new();
@@ -155,11 +173,9 @@ fn generate_nixos_type_definition(
             }),
         },
         Data::Enum(data_enum) => {
-            let variants: Vec<String> = data_enum
-                .variants
-                .iter()
-                .map(|v| format!("\"{}\"", v.ident))
-                .collect();
+            let variants = generate_enum_variant_names(data_enum, rename_all)?;
+            let variants: Vec<String> =
+                variants.into_iter().map(|v| format!("\"{}\"", v)).collect();
             let variants_str = variants.join(" ");
 
             Ok(quote! {
@@ -178,11 +194,17 @@ fn generate_nixos_type_definition(
     }
 }
 
-fn generate_nixos_options(data: &Data, _name: &Ident, auto_doc: bool) -> Result<TokenStream> {
+fn generate_nixos_options(
+    data: &Data,
+    _name: &Ident,
+    auto_doc: bool,
+    rename_all: Option<RenameRule>,
+) -> Result<TokenStream> {
     match data {
         Data::Struct(data_struct) => match &data_struct.fields {
             Fields::Named(fields) => {
-                let options_body = generate_options_for_fields(fields, false, auto_doc)?;
+                let options_body =
+                    generate_options_for_fields(fields, false, auto_doc, rename_all)?;
                 Ok(quote! {
                     {
                         let mut result = String::new();
@@ -235,6 +257,7 @@ fn generate_nixos_full_definition(
     name: &Ident,
     type_name: &str,
     auto_doc: bool,
+    rename_all: Option<RenameRule>,
 ) -> Result<TokenStream> {
     match data {
         Data::Struct(data_struct) => {
@@ -244,7 +267,8 @@ fn generate_nixos_full_definition(
                     let mut custom_types = HashSet::new();
                     collect_custom_types(fields, &mut custom_types);
 
-                    let options_body = generate_options_for_fields(fields, true, auto_doc)?;
+                    let options_body =
+                        generate_options_for_fields(fields, true, auto_doc, rename_all)?;
 
                     // Generate let bindings for nested custom types
                     let nested_type_bindings = if custom_types.is_empty() {
@@ -302,7 +326,9 @@ fn generate_nixos_full_definition(
                 }),
             }
         }
-        Data::Enum(_) => generate_nixos_type_definition(data, name, type_name, auto_doc),
+        Data::Enum(_) => {
+            generate_nixos_type_definition(data, name, type_name, auto_doc, rename_all)
+        }
         Data::Union(_) => Err(syn::Error::new_spanned(
             name,
             "Union types are not supported. Use enums instead.",
@@ -361,6 +387,7 @@ fn generate_options_for_fields(
     fields: &FieldsNamed,
     use_named_types: bool,
     auto_doc: bool,
+    rename_all: Option<RenameRule>,
 ) -> Result<TokenStream> {
     let mut field_options = Vec::new();
 
@@ -380,11 +407,12 @@ fn generate_options_for_fields(
         }
 
         // Determine field name (considering rename)
-        let nix_field_name = effective_attrs
-            .name
-            .as_ref()
-            .unwrap_or(&field_name.to_string())
-            .clone();
+        let default_field_name = if let Some(rule) = rename_all {
+            apply_rename_rule_to_field(&field_name.to_string(), rule)
+        } else {
+            field_name.to_string()
+        };
+        let nix_field_name = effective_attrs.name.unwrap_or(default_field_name);
 
         // Generate the type expression
         let type_expr = if is_optional_type(field_type) {
@@ -520,6 +548,25 @@ fn generate_options_for_fields(
     Ok(quote! {
         #(#field_options)*
     })
+}
+
+fn generate_enum_variant_names(
+    data_enum: &syn::DataEnum,
+    rename_all: Option<RenameRule>,
+) -> Result<Vec<String>> {
+    let mut variants = Vec::new();
+
+    for variant in &data_enum.variants {
+        let serde_attrs = parse_serde_attributes(&variant.attrs)?;
+        let default_name = if let Some(rule) = rename_all {
+            apply_rename_rule_to_variant(&variant.ident.to_string(), rule)
+        } else {
+            variant.ident.to_string()
+        };
+        variants.push(serde_attrs.rename.unwrap_or(default_name));
+    }
+
+    Ok(variants)
 }
 
 /// Generate nixos type expression using named types for custom structs

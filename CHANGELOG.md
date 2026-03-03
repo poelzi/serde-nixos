@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-03-03
+
+### Added
+- Expanded Serde attribute compatibility:
+  - Added support for `#[serde(skip_serializing_if = "...")]` parsing.
+  - Added parse compatibility for `alias`, `serialize_with`, `deserialize_with`, `with`, `borrow`, `bound`, and `getter`.
+  - Added support for directional rename syntax `#[serde(rename(serialize = "...", deserialize = "..."))]`.
+  - Added support for container-level `#[serde(rename_all = "...")]` for struct fields and enum variants.
+- New `apply_rename_rule_to_field` and `apply_rename_rule_to_variant` functions matching serde's exact behavior for all rename rules.
+
+### Fixed
+- `rename_all` with `lowercase` and `UPPERCASE` on struct fields now matches serde behavior (preserves underscores in field names instead of removing them).
+- Invalid `rename_all` values (e.g., typos like `"CamelCase"` instead of `"camelCase"`) now produce clear compile-time errors with the list of valid values.
+- `rename_all` on fields/variants (only valid at container level) now produces a helpful compile-time error instead of being silently ignored.
+- Container-level serde attribute parsing now correctly consumes all nested attribute tokens, preventing parse errors on unknown future serde attributes.
+
+### Changed
+- Updated dependency lockfile to latest compatible versions for key crates:
+  - `proc-macro2` 1.0.106
+  - `quote` 1.0.44
+  - `syn` 2.0.117
+  - `serde_json` 1.0.149
+
+### Tests
+- Added integration tests for:
+  - `default + skip_serializing_if` regression.
+  - Serde value-bearing field attributes parse compatibility.
+  - Directional rename behavior.
+  - `rename_all` behavior on structs and enums (all cases: `camelCase`, `PascalCase`, `snake_case`, `kebab-case`, `SCREAMING_SNAKE_CASE`, `lowercase`, `UPPERCASE`).
+- Added comprehensive `serde_attrs_compat.rs` test suite (21 tests) covering all supported serde field and container attributes.
+
 ## [0.1.1] - 2025-11-04
 
 ### Fixed
