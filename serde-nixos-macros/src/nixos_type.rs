@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use syn::{Data, DeriveInput, Fields, FieldsNamed, Ident, Result, Type};
 
 use crate::attributes::{
@@ -259,7 +259,7 @@ fn generate_nixos_full_definition(
             match &data_struct.fields {
                 Fields::Named(fields) => {
                     // Collect all custom types used in fields (recursively)
-                    let mut custom_types = HashSet::new();
+                    let mut custom_types = BTreeSet::new();
                     collect_custom_types(fields, &mut custom_types);
 
                     let options_body =
@@ -332,14 +332,14 @@ fn generate_nixos_full_definition(
 }
 
 /// Collect custom type names from fields (recursively handles nested types)
-fn collect_custom_types(fields: &FieldsNamed, types: &mut HashSet<String>) {
+fn collect_custom_types(fields: &FieldsNamed, types: &mut BTreeSet<String>) {
     for field in &fields.named {
         collect_custom_types_from_type(&field.ty, types);
     }
 }
 
 /// Recursively collect custom type names from a type, including nested types
-fn collect_custom_types_from_type(ty: &Type, types: &mut HashSet<String>) {
+fn collect_custom_types_from_type(ty: &Type, types: &mut BTreeSet<String>) {
     if let Type::Path(type_path) = ty {
         let segment = type_path.path.segments.last();
         if let Some(seg) = segment {
@@ -347,7 +347,7 @@ fn collect_custom_types_from_type(ty: &Type, types: &mut HashSet<String>) {
 
             // Check if this is a wrapper type (Option, Vec, HashMap, etc.)
             match type_name.as_str() {
-                "Option" | "Vec" | "Box" | "Rc" | "Arc" => {
+                "Option" | "Vec" | "Box" | "Rc" | "Arc" | "HashSet" | "BTreeSet" => {
                     // Extract inner type from generic arguments
                     if let syn::PathArguments::AngleBracketed(args) = &seg.arguments {
                         for arg in &args.args {

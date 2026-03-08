@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_nixos::NixosType;
+use std::collections::HashSet;
 
 #[test]
 fn test_full_definition_single_nested_type() {
@@ -298,4 +299,137 @@ fn test_full_definition_no_duplicates() {
     // But should be referenced twice
     let ref_count = full_def.matches("type = sharedConfigType").count();
     assert_eq!(ref_count, 2, "Shared type should be referenced twice");
+}
+
+/// Verify that `let` bindings in full definitions are deterministically ordered.
+///
+/// Previously, `HashSet` was used to collect custom types, which made the
+/// order of `let` bindings non-deterministic across runs. Now `BTreeSet`
+/// is used, so the output should be identical on every call.
+#[test]
+fn test_full_definition_deterministic_ordering() {
+    #[derive(Serialize, Deserialize, NixosType)]
+    struct Zebra {
+        z: u32,
+    }
+
+    #[derive(Serialize, Deserialize, NixosType)]
+    struct Alpha {
+        a: u32,
+    }
+
+    #[derive(Serialize, Deserialize, NixosType)]
+    struct Middle {
+        m: u32,
+    }
+
+    #[derive(Serialize, Deserialize, NixosType)]
+    struct Container {
+        // Deliberately out of alphabetical order
+        z: Zebra,
+        a: Alpha,
+        m: Middle,
+    }
+
+    // Generate the full definition multiple times and ensure identical output
+    let results: Vec<String> = (0..10)
+        .map(|_| Container::nixos_type_full_definition())
+        .collect();
+
+    for (i, result) in results.iter().enumerate().skip(1) {
+        assert_eq!(
+            &results[0], result,
+            "Full definition must be deterministic (iteration {} differed)",
+            i
+        );
+    }
+
+    let full_def = &results[0];
+
+    // BTreeSet sorts alphabetically, so alphaType < middleType < zebraType
+    let alpha_pos = full_def
+        .find("alphaType = types.submodule")
+        .expect("alphaType not found");
+    let middle_pos = full_def
+        .find("middleType = types.submodule")
+        .expect("middleType not found");
+    let zebra_pos = full_def
+        .find("zebraType = types.submodule")
+        .expect("zebraType not found");
+    assert!(
+        alpha_pos < middle_pos && middle_pos < zebra_pos,
+        "Let bindings should be in alphabetical order (BTreeSet): alpha={}, middle={}, zebra={}",
+        alpha_pos,
+        middle_pos,
+        zebra_pos
+    );
+}
+
+/// Verify that `HashSet<CustomType>` is properly discovered by
+/// `collect_custom_types_from_type` so that a `let` binding is generated.
+///
+/// Previously, `HashSet` and `BTreeSet` were missing from the container
+/// type match arm, so `nixos_type_full_definition()` would reference a
+/// type name that was never defined — producing invalid Nix.
+#[test]
+fn test_full_definition_hashset_of_custom_type() {
+    #[derive(Serialize, Deserialize, NixosType, Hash, Eq, PartialEq)]
+    struct Tag {
+        label: String,
+    }
+
+    #[derive(Serialize, Deserialize, NixosType)]
+    struct Document {
+        title: String,
+        tags: HashSet<Tag>,
+    }
+
+    let full_def = Document::nixos_type_full_definition();
+
+    // tagType must be defined in the let bindings
+    assert!(
+        full_def.contains("tagType = types.submodule"),
+        "HashSet<Tag> should cause tagType to be defined in let bindings: {}",
+        full_def
+    );
+
+    // documentType should reference tagType via listOf
+    assert!(
+        full_def.contains("types.listOf tagType"),
+        "HashSet<Tag> field should reference tagType: {}",
+        full_def
+    );
+}
+
+/// Same as above but for `BTreeSet`.
+#[test]
+fn test_full_definition_btreeset_of_custom_type() {
+    use std::collections::BTreeSet;
+
+    #[derive(Serialize, Deserialize, NixosType, Hash, Eq, PartialEq, Ord, PartialOrd)]
+    struct Priority {
+        level: u32,
+    }
+
+    #[derive(Serialize, Deserialize, NixosType)]
+    struct TaskList {
+        name: String,
+        priorities: BTreeSet<Priority>,
+    }
+
+    let full_def = TaskList::nixos_type_full_definition();
+
+    // priorityType must be defined in the let bindings
+    assert!(
+        full_def.contains("priorityType = types.submodule"),
+        "BTreeSet<Priority> should cause priorityType to be defined in let bindings: {}",
+        full_def
+    );
+
+    // taskListType should reference priorityType via listOf
+    assert!(
+        full_def.contains("types.listOf priorityType"),
+        "BTreeSet<Priority> field should reference priorityType: {}",
+        full_def
+    );
 }
