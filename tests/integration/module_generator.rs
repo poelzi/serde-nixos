@@ -109,6 +109,12 @@ struct WorkflowDef {
     default_timeout_secs: Option<u64>,
 }
 
+#[derive(Serialize, Deserialize, NixosType)]
+enum ModeDef {
+    Fast,
+    Safe,
+}
+
 // ── A1: Option<T> default = null ────────────────────────────────────
 
 #[test]
@@ -374,6 +380,20 @@ fn test_module_generator_custom_export() {
         .generate();
 
     assert!(nix.contains("agentOptions = {"));
+}
+
+#[test]
+fn test_module_generator_enum_registration_uses_type_expr() {
+    let reg = type_registration!(ModeDef);
+    assert!(reg.type_expr.contains("types.enum"));
+
+    let nix = NixosModuleGenerator::new()
+        .register(reg)
+        .export_type("modeDefType")
+        .generate();
+
+    assert!(nix.contains("modeDefType = types.enum"));
+    assert!(!nix.contains("modeDefType = types.submodule {"));
 }
 
 // ── C: nixos_module! proc-macro ─────────────────────────────────────

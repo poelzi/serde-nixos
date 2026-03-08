@@ -412,21 +412,30 @@ impl NixosModuleGenerator {
 
             // Type definitions
             for reg in &self.types {
-                writeln!(out, "{}{} = types.submodule {{", i1, reg.type_name).unwrap();
-                writeln!(out, "{}options = {{", i2).unwrap();
+                if reg.type_expr.trim() == reg.type_name {
+                    // Struct-like registrations reference themselves as a named
+                    // type and need the submodule body from `options`.
+                    writeln!(out, "{}{} = types.submodule {{", i1, reg.type_name).unwrap();
+                    writeln!(out, "{}options = {{", i2).unwrap();
 
-                // Indent each options line by 3 levels
-                for line in reg.options.lines() {
-                    if line.trim().is_empty() {
-                        writeln!(out).unwrap();
-                    } else {
-                        writeln!(out, "{}{}", i3, line.trim_start()).unwrap();
+                    // Indent each options line by 3 levels
+                    for line in reg.options.lines() {
+                        if line.trim().is_empty() {
+                            writeln!(out).unwrap();
+                        } else {
+                            writeln!(out, "{}{}", i3, line.trim_start()).unwrap();
+                        }
                     }
-                }
 
-                writeln!(out, "{}}};", i2).unwrap();
-                writeln!(out, "{}}};", i1).unwrap();
-                writeln!(out).unwrap();
+                    writeln!(out, "{}}};", i2).unwrap();
+                    writeln!(out, "{}}};", i1).unwrap();
+                    writeln!(out).unwrap();
+                } else {
+                    // Enum-like registrations already have a complete type
+                    // expression (e.g. `types.enum [ ... ]`).
+                    writeln!(out, "{}{} = {};", i1, reg.type_name, reg.type_expr.trim()).unwrap();
+                    writeln!(out).unwrap();
+                }
             }
 
             // Extra let bindings
@@ -596,5 +605,22 @@ mod tests {
         assert!(output.contains("alphaType"));
         assert!(output.contains("betaType"));
         assert!(output.contains("inherit"));
+    }
+
+    #[test]
+    fn test_module_generator_uses_type_expr_for_non_submodule_types() {
+        let enum_like = TypeRegistration {
+            type_name: "modeType",
+            options: String::new(),
+            type_expr: "types.enum [ \"fast\" \"safe\" ]".to_string(),
+        };
+
+        let gen = NixosModuleGenerator::new()
+            .register(enum_like)
+            .export_type("modeType");
+        let output = gen.generate();
+
+        assert!(output.contains("modeType = types.enum [ \"fast\" \"safe\" ];"));
+        assert!(!output.contains("modeType = types.submodule {"));
     }
 }
