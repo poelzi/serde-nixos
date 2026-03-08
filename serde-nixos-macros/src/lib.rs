@@ -43,35 +43,41 @@ pub fn derive_nixos_type(input: TokenStream) -> TokenStream {
     }
 }
 
-/// Generate a NixOS module from a Rust type at compile time.
+/// Generate the full NixOS type definition (with `let` bindings for
+/// nested types) from a Rust type at compile time.
 ///
-/// This procedural macro generates a string literal containing the NixOS
-/// module definition for the annotated type.
+/// The type must derive [`NixosType`]. The macro expands to a call to
+/// `T::nixos_type_full_definition()`, which produces a `let ... in typeNameType`
+/// Nix expression containing all direct-child custom types as `let` bindings.
+///
+/// For composing **multiple** types into a single `.nix` file with proper
+/// cross-references, use the runtime [`NixosModuleGenerator`] API instead.
 ///
 /// # Example
 ///
 /// ```ignore
-/// use serde_nixos::nixos_module;
+/// use serde::{Serialize, Deserialize};
+/// use serde_nixos::{NixosType, nixos_module};
 ///
-/// #[derive(Serialize, Deserialize)]
+/// #[derive(Serialize, Deserialize, NixosType)]
+/// struct Inner { value: String }
+///
+/// #[derive(Serialize, Deserialize, NixosType)]
 /// struct Config {
-///     port: u16,
-///     host: String,
+///     name: String,
+///     inner: Inner,
 /// }
 ///
-/// const NIXOS_MODULE: &str = nixos_module!(Config);
+/// let nix: String = nixos_module!(Config);
+/// assert!(nix.contains("innerType = types.submodule"));
+/// assert!(nix.contains("configType = types.submodule"));
 /// ```
 #[proc_macro]
 pub fn nixos_module(input: TokenStream) -> TokenStream {
-    let type_name = parse_macro_input!(input as syn::Type);
+    let type_path = parse_macro_input!(input as syn::Type);
 
     quote! {
-        {
-            use std::any::TypeId;
-            // This would need runtime reflection or compile-time generation
-            // For now, this is a placeholder
-            concat!("# NixOS module for ", stringify!(#type_name))
-        }
+        <#type_path>::nixos_type_full_definition()
     }
     .into()
 }

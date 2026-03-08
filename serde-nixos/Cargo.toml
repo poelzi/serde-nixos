@@ -8,7 +8,7 @@ repository.workspace = true
 description = "Generate NixOS type definitions from Rust structures"
 
 [dependencies]
-serde-nixos-macros = { version = "0.2.1", path = "../serde-nixos-macros" }
+serde-nixos-macros = { version = "0.3.0", path = "../serde-nixos-macros" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 
@@ -78,3 +78,7 @@ path = "../tests/integration/compound_types.rs"
 [[test]]
 name = "hashmap_keys"
 path = "../tests/integration/hashmap_keys.rs"
+
+[[test]]
+name = "module_generator"
+path = "../tests/integration/module_generator.rs"

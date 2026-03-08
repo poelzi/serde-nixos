@@ -6,7 +6,7 @@
 //! definitions from your Rust configuration structures, ensuring type safety
 //! across both Rust and Nix.
 //!
-//! ## Example
+//! ## Quick Start
 //!
 //! ```rust
 //! use serde::{Serialize, Deserialize};
@@ -53,6 +53,29 @@
 //! ```
 //!
 //! This will output a NixOS module definition that can be used in your NixOS configuration.
+//!
+//! ## Multi-Type Module Generation
+//!
+//! For generating `.nix` files that compose multiple types with proper
+//! `let` bindings and cross-references, use [`NixosModuleGenerator`]:
+//!
+//! ```rust
+//! use serde::{Serialize, Deserialize};
+//! use serde_nixos::{NixosType, type_registration};
+//! use serde_nixos::generator::NixosModuleGenerator;
+//!
+//! #[derive(Serialize, Deserialize, NixosType)]
+//! struct Inner { value: String }
+//!
+//! #[derive(Serialize, Deserialize, NixosType)]
+//! struct Outer { child: Inner }
+//!
+//! let nix = NixosModuleGenerator::new()
+//!     .register(type_registration!(Inner))
+//!     .register(type_registration!(Outer))
+//!     .export_all_types()
+//!     .generate();
+//! ```
 
 pub use serde_nixos_macros::{nixos_module, NixosType};
 
@@ -61,6 +84,41 @@ pub use serde::{Deserialize, Serialize};
 
 /// Generator utilities for building NixOS modules
 pub mod generator;
+
+// Re-export key generator types for convenience
+pub use generator::{NixosModuleGenerator, TypeRegistration};
+
+/// Create a [`TypeRegistration`] from a type that derives [`NixosType`].
+///
+/// This macro captures the output of the derive-generated inherent methods
+/// (`nixos_type_name()`, `nixos_options()`, `nixos_type()`) into a
+/// [`TypeRegistration`] struct suitable for [`NixosModuleGenerator::register`].
+///
+/// # Example
+///
+/// ```rust
+/// use serde::{Serialize, Deserialize};
+/// use serde_nixos::{NixosType, type_registration};
+///
+/// #[derive(Serialize, Deserialize, NixosType)]
+/// struct MyConfig {
+///     port: u16,
+///     host: String,
+/// }
+///
+/// let reg = type_registration!(MyConfig);
+/// assert_eq!(reg.type_name, "myConfigType");
+/// ```
+#[macro_export]
+macro_rules! type_registration {
+    ($ty:ty) => {
+        $crate::generator::TypeRegistration {
+            type_name: <$ty>::nixos_type_name(),
+            options: <$ty>::nixos_options(),
+            type_expr: <$ty>::nixos_type(),
+        }
+    };
+}
 
 /// Helper trait for types that can generate NixOS definitions
 pub trait NixosTypeGenerator {

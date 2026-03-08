@@ -113,7 +113,7 @@ fn path_to_nixos_type(path: &Path) -> TokenStream {
 }
 
 /// Extract the inner type from a generic type like `Vec<T>` or `Option<T>`
-fn get_generic_inner_type(path: &Path) -> Option<&Type> {
+pub fn get_generic_inner_type(path: &Path) -> Option<&Type> {
     let last_segment = path.segments.last()?;
 
     if let PathArguments::AngleBracketed(args) = &last_segment.arguments {
@@ -126,7 +126,7 @@ fn get_generic_inner_type(path: &Path) -> Option<&Type> {
 }
 
 /// Extract the value type from a map type like HashMap<K, V>
-fn get_map_value_type(path: &Path) -> Option<&Type> {
+pub fn get_map_value_type(path: &Path) -> Option<&Type> {
     let last_segment = path.segments.last()?;
 
     if let PathArguments::AngleBracketed(args) = &last_segment.arguments {

@@ -9,7 +9,8 @@ use crate::attributes::{
     parse_serde_attributes, parse_serde_container_attributes, RenameRule,
 };
 use crate::type_mapping::{
-    get_custom_type_name, is_optional_type, rust_type_to_nixos, unwrap_option_type,
+    get_custom_type_name, get_generic_inner_type, get_map_value_type, is_optional_type,
+    rust_type_to_nixos, unwrap_option_type,
 };
 
 pub fn expand_nixos_type(input: &DeriveInput) -> Result<TokenStream> {
@@ -113,13 +114,7 @@ pub fn expand_nixos_type(input: &DeriveInput) -> Result<TokenStream> {
 
 /// Generate a camelCase type name from a struct name
 fn generate_type_name(ident: &Ident) -> String {
-    let name = ident.to_string();
-    // Convert to camelCase: ServerConfig -> serverConfigType
-    let mut chars = name.chars();
-    match chars.next() {
-        None => "type".to_string(),
-        Some(f) => format!("{}{}Type", f.to_lowercase(), chars.as_str()),
-    }
+    to_nixos_type_name(&ident.to_string())
 }
 
 fn generate_struct_impl(
@@ -467,13 +462,20 @@ fn generate_options_for_fields(
             });
         }
 
-        // Add default if present
+        // Add default if present (explicit #[nixos(default = "...")] takes priority).
+        // For Option<T> fields without an explicit default, emit `default = null;`
+        // since NixOS treats fields without defaults as mandatory.
         if let Some(default) = &effective_attrs.default {
             field_options.push(quote! {
                 result.push_str(#indent);
                 result.push_str("default = ");
                 result.push_str(#default);
                 result.push_str(";\n");
+            });
+        } else if is_optional_type(field_type) {
+            field_options.push(quote! {
+                result.push_str(#indent);
+                result.push_str("default = null;\n");
             });
         }
 
@@ -573,20 +575,78 @@ fn generate_enum_variant_names(
     Ok(variants)
 }
 
-/// Generate nixos type expression using named types for custom structs
+/// Convert a Rust type name to its camelCase NixOS type name (e.g. "AgentDefinition" -> "agentDefinitionType").
+fn to_nixos_type_name(type_name: &str) -> String {
+    let mut chars = type_name.chars();
+    match chars.next() {
+        None => "type".to_string(),
+        Some(f) => format!("{}{}Type", f.to_lowercase(), chars.as_str()),
+    }
+}
+
+/// Generate nixos type expression using named types for custom structs.
+///
+/// Unlike [`rust_type_to_nixos`], this function resolves custom struct types
+/// to their named let-binding references (e.g. `agentDefinitionType`) instead
+/// of emitting inline `types.submodule { ... }` placeholders.  It also handles
+/// container types wrapping custom types:
+///   - `Vec<Custom>`          -> `types.listOf customType`
+///   - `HashMap<K, Custom>`   -> `types.attrsOf customType`
+///   - `HashSet<Custom>`      -> `types.listOf customType`
+///   - `Box<Custom>` / `Arc<Custom>` / `Rc<Custom>` -> `customType`
 fn rust_type_to_nixos_named(ty: &Type) -> TokenStream {
     if let Some(type_name) = get_custom_type_name(ty) {
-        // For custom types, use the type name directly
-        let camel_case_name = {
-            let mut chars = type_name.chars();
-            match chars.next() {
-                None => "type".to_string(),
-                Some(f) => format!("{}{}Type", f.to_lowercase(), chars.as_str()),
-            }
-        };
+        // Direct custom type -> named reference
+        let camel_case_name = to_nixos_type_name(&type_name);
         quote! { #camel_case_name.to_string() }
+    } else if let Type::Path(type_path) = ty {
+        if let Some(seg) = type_path.path.segments.last() {
+            let ident = seg.ident.to_string();
+            match ident.as_str() {
+                "Vec" | "HashSet" | "BTreeSet" => {
+                    if let Some(inner) = get_generic_inner_type(&type_path.path) {
+                        let inner_expr = rust_type_to_nixos_named(inner);
+                        return quote! {
+                            {
+                                let inner = #inner_expr;
+                                if inner.contains(' ') {
+                                    format!("types.listOf ({})", inner)
+                                } else {
+                                    format!("types.listOf {}", inner)
+                                }
+                            }
+                        };
+                    }
+                    rust_type_to_nixos(ty)
+                }
+                "HashMap" | "BTreeMap" => {
+                    if let Some(value) = get_map_value_type(&type_path.path) {
+                        let value_expr = rust_type_to_nixos_named(value);
+                        return quote! {
+                            {
+                                let inner = #value_expr;
+                                if inner.contains(' ') {
+                                    format!("types.attrsOf ({})", inner)
+                                } else {
+                                    format!("types.attrsOf {}", inner)
+                                }
+                            }
+                        };
+                    }
+                    rust_type_to_nixos(ty)
+                }
+                "Box" | "Rc" | "Arc" => {
+                    if let Some(inner) = get_generic_inner_type(&type_path.path) {
+                        return rust_type_to_nixos_named(inner);
+                    }
+                    rust_type_to_nixos(ty)
+                }
+                _ => rust_type_to_nixos(ty),
+            }
+        } else {
+            rust_type_to_nixos(ty)
+        }
     } else {
-        // Fall back to regular type mapping
         rust_type_to_nixos(ty)
     }
 }
