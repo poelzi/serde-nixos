@@ -70,3 +70,11 @@ path = "../tests/integration/serde_default.rs"
 [[test]]
 name = "serde_attrs_compat"
 path = "../tests/integration/serde_attrs_compat.rs"
+
+[[test]]
+name = "compound_types"
+path = "../tests/integration/compound_types.rs"
+
+[[test]]
+name = "hashmap_keys"
+path = "../tests/integration/hashmap_keys.rs"

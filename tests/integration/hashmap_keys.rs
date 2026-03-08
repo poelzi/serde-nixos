@@ -12,8 +12,12 @@ fn test_hashmap_string_keys() {
 
     let options = Config::nixos_options();
     assert!(options.contains("settings = lib.mkOption"));
-    // HashMap<String, V> should use types.attrsOf
-    assert!(options.contains("types.attrsOf"));
+    // HashMap<String, String> → simple value type, no parens needed
+    assert!(
+        options.contains("types.attrsOf types.str"),
+        "attrsOf with simple value: {}",
+        options
+    );
 }
 
 #[test]
@@ -83,9 +87,12 @@ fn test_nested_hashmap_complex_values() {
 
     let options = Services::nixos_options();
     assert!(options.contains("configs = lib.mkOption"));
-    assert!(options.contains("types.attrsOf"));
-
-    println!("HashMap with complex values: {}", options);
+    // Submodule is compound (contains space) → must be parenthesized
+    assert!(
+        options.contains("types.attrsOf (types.submodule"),
+        "attrsOf with submodule value must be parenthesized: {}",
+        options
+    );
 }
 
 #[test]
@@ -97,8 +104,12 @@ fn test_hashmap_nested_in_hashmap() {
 
     let options = NestedMaps::nixos_options();
     assert!(options.contains("data = lib.mkOption"));
-
-    println!("Nested HashMaps: {}", options);
+    // HashMap<String, HashMap<String, u32>> → compound value type, parens needed
+    assert!(
+        options.contains("types.attrsOf (types.attrsOf types.int)"),
+        "nested attrsOf must be parenthesized: {}",
+        options
+    );
 }
 
 #[test]
@@ -111,9 +122,12 @@ fn test_optional_hashmap() {
 
     let options = OptionalMap::nixos_options();
     assert!(options.contains("settings = lib.mkOption"));
-    assert!(options.contains("types.nullOr"));
-
-    println!("Optional HashMap: {}", options);
+    // Option<HashMap<String, String>> → compound inner type, parens needed
+    assert!(
+        options.contains("types.nullOr (types.attrsOf types.str)"),
+        "nullOr with attrsOf must be parenthesized: {}",
+        options
+    );
 }
 
 #[test]
