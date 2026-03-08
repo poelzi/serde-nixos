@@ -91,8 +91,9 @@ pub use generator::{NixosModuleGenerator, TypeRegistration};
 /// Create a [`TypeRegistration`] from a type that derives [`NixosType`].
 ///
 /// This macro captures the output of the derive-generated inherent methods
-/// (`nixos_type_name()`, `nixos_options()`, `nixos_type()`) into a
-/// [`TypeRegistration`] struct suitable for [`NixosModuleGenerator::register`].
+/// (`nixos_type_name()`, `nixos_options()`, `nixos_options_named()`,
+/// `nixos_type()`) into a [`TypeRegistration`] struct suitable for
+/// [`NixosModuleGenerator::register`].
 ///
 /// # Example
 ///
@@ -115,6 +116,7 @@ macro_rules! type_registration {
         $crate::generator::TypeRegistration {
             type_name: <$ty>::nixos_type_name(),
             options: <$ty>::nixos_options(),
+            options_named: <$ty>::nixos_options_named(),
             type_expr: <$ty>::nixos_type(),
         }
     };

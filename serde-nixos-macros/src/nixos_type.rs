@@ -67,6 +67,14 @@ pub fn expand_nixos_type(input: &DeriveInput) -> Result<TokenStream> {
     let nixos_options = generate_nixos_options(
         &input.data,
         name,
+        false,
+        struct_attrs.auto_doc,
+        serde_container_attrs.rename_all,
+    )?;
+    let nixos_options_named = generate_nixos_options(
+        &input.data,
+        name,
+        true,
         struct_attrs.auto_doc,
         serde_container_attrs.rename_all,
     )?;
@@ -91,6 +99,18 @@ pub fn expand_nixos_type(input: &DeriveInput) -> Result<TokenStream> {
             /// Generate just the options portion of the NixOS module
             pub fn nixos_options() -> String {
                 #nixos_options
+            }
+
+            /// Generate the options portion using named type references.
+            ///
+            /// Like [`nixos_options`], but custom struct types in fields are
+            /// emitted as their camelCase type names (e.g. `databaseConfigType`)
+            /// instead of inline `types.submodule { ... }` placeholders.
+            ///
+            /// Use this with [`NixosModuleGenerator`] to produce self-consistent
+            /// `.nix` files where all types are defined in `let` bindings.
+            pub fn nixos_options_named() -> String {
+                #nixos_options_named
             }
 
             /// Get the NixOS type expression for this type
@@ -192,6 +212,7 @@ fn generate_nixos_type_definition(
 fn generate_nixos_options(
     data: &Data,
     _name: &Ident,
+    use_named_types: bool,
     auto_doc: bool,
     rename_all: Option<RenameRule>,
 ) -> Result<TokenStream> {
@@ -199,7 +220,7 @@ fn generate_nixos_options(
         Data::Struct(data_struct) => match &data_struct.fields {
             Fields::Named(fields) => {
                 let options_body =
-                    generate_options_for_fields(fields, false, auto_doc, rename_all)?;
+                    generate_options_for_fields(fields, use_named_types, auto_doc, rename_all)?;
                 Ok(quote! {
                     {
                         let mut result = String::new();

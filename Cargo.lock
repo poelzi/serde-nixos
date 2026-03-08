@@ -44,7 +44,7 @@ dependencies = [
 
 [[package]]
 name = "serde-nixos"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "serde",
  "serde-nixos-macros",
@@ -53,7 +53,7 @@ dependencies = [
 
 [[package]]
 name = "serde-nixos-macros"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "proc-macro2",
  "quote",
