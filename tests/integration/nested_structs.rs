@@ -84,9 +84,9 @@ fn test_optional_nested_struct() {
 
     let options = AppConfig::nixos_options();
 
-    // Should wrap submodule in nullOr
+    // Should wrap submodule in nullOr with parentheses
     assert!(options.contains("database = lib.mkOption"));
-    assert!(options.contains("types.nullOr types.submodule"));
+    assert!(options.contains("types.nullOr (types.submodule"));
 }
 
 #[test]
@@ -104,7 +104,7 @@ fn test_vec_of_structs() {
 
     let options = AppConfig::nixos_options();
 
-    // Should create listOf submodule
+    // Should create listOf submodule with parentheses
     assert!(options.contains("plugins = lib.mkOption"));
-    assert!(options.contains("types.listOf types.submodule"));
+    assert!(options.contains("types.listOf (types.submodule"));
 }

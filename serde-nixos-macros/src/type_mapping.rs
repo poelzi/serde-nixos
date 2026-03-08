@@ -28,36 +28,79 @@ fn path_to_nixos_type(path: &Path) -> TokenStream {
         "f32" | "f64" => quote! { "types.float" },
 
         // Container types
+        //
+        // In Nix, function application is left-associative, so
+        //   types.nullOr types.listOf types.str
+        // parses as  (types.nullOr types.listOf) types.str  (wrong).
+        // Compound inner expressions (containing a space) must be
+        // wrapped in parentheses:
+        //   types.nullOr (types.listOf types.str)
         "Vec" => {
             if let Some(inner_type) = get_generic_inner_type(path) {
                 let inner_nixos = rust_type_to_nixos(inner_type);
-                quote! { format!("types.listOf {}", #inner_nixos) }
+                quote! {
+                    {
+                        let inner = #inner_nixos;
+                        if inner.contains(' ') {
+                            format!("types.listOf ({})", inner)
+                        } else {
+                            format!("types.listOf {}", inner)
+                        }
+                    }
+                }
             } else {
-                quote! { "types.listOf types.attrs" }
+                quote! { "types.listOf types.attrs".to_string() }
             }
         }
         "Option" => {
             if let Some(inner_type) = get_generic_inner_type(path) {
                 let inner_nixos = rust_type_to_nixos(inner_type);
-                quote! { format!("types.nullOr {}", #inner_nixos) }
+                quote! {
+                    {
+                        let inner = #inner_nixos;
+                        if inner.contains(' ') {
+                            format!("types.nullOr ({})", inner)
+                        } else {
+                            format!("types.nullOr {}", inner)
+                        }
+                    }
+                }
             } else {
-                quote! { "types.nullOr types.attrs" }
+                quote! { "types.nullOr types.attrs".to_string() }
             }
         }
         "HashMap" | "BTreeMap" => {
             if let Some(value_type) = get_map_value_type(path) {
                 let value_nixos = rust_type_to_nixos(value_type);
-                quote! { format!("types.attrsOf {}", #value_nixos) }
+                quote! {
+                    {
+                        let inner = #value_nixos;
+                        if inner.contains(' ') {
+                            format!("types.attrsOf ({})", inner)
+                        } else {
+                            format!("types.attrsOf {}", inner)
+                        }
+                    }
+                }
             } else {
-                quote! { "types.attrsOf types.attrs" }
+                quote! { "types.attrsOf types.attrs".to_string() }
             }
         }
         "HashSet" | "BTreeSet" => {
             if let Some(inner_type) = get_generic_inner_type(path) {
                 let inner_nixos = rust_type_to_nixos(inner_type);
-                quote! { format!("types.listOf {}", #inner_nixos) }
+                quote! {
+                    {
+                        let inner = #inner_nixos;
+                        if inner.contains(' ') {
+                            format!("types.listOf ({})", inner)
+                        } else {
+                            format!("types.listOf {}", inner)
+                        }
+                    }
+                }
             } else {
-                quote! { "types.listOf types.attrs" }
+                quote! { "types.listOf types.attrs".to_string() }
             }
         }
 

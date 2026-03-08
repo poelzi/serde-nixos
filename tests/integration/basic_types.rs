@@ -67,7 +67,7 @@ fn test_collection_types() {
     assert!(options.contains("numbers = lib.mkOption"));
     assert!(options.contains("types.listOf types.int"));
     assert!(options.contains("nested_list = lib.mkOption"));
-    assert!(options.contains("types.listOf types.listOf types.str"));
+    assert!(options.contains("types.listOf (types.listOf types.str)"));
 }
 
 #[test]

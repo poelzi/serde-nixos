@@ -425,7 +425,11 @@ fn generate_options_for_fields(
             quote! {
                 {
                     let inner = #inner_nixos;
-                    format!("types.nullOr {}", inner)
+                    if inner.contains(' ') {
+                        format!("types.nullOr ({})", inner)
+                    } else {
+                        format!("types.nullOr {}", inner)
+                    }
                 }
             }
         } else if use_named_types {
